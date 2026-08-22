@@ -1,0 +1,33 @@
+.
+|-- HELP.md
+|-- mvnw
+|-- mvnw.cmd
+|-- pom.xml
+|-- src
+|   |-- main
+|   |   |-- java
+|   |   |   `-- com
+|   |   |       `-- banking
+|   |   |           `-- core_banking_system
+|   |   |               `-- CoreBankingSystemApplication.java
+|   |   `-- resources
+|   |       |-- application.properties
+|   |       |-- static
+|   |       `-- templates
+|   `-- test
+|       `-- java
+|           `-- com
+|               `-- banking
+|                   `-- core_banking_system
+|                       `-- CoreBankingSystemApplicationTests.java
+|-- structure.txt
+`-- target
+    |-- classes
+    |   `-- application.properties
+    |-- generated-sources
+    |   `-- annotations
+    |-- generated-test-sources
+    |   `-- test-annotations
+    `-- test-classes
+
+21 directories, 9 files
