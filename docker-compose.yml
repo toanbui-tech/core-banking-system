@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: core-banking-db
+    environment:
+      POSTGRES_DB: core_banking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - core-banking-data:/var/lib/postgresql/data
+
+volumes:
+  core-banking-data:
