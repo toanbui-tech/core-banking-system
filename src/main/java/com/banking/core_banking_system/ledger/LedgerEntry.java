@@ -30,6 +30,12 @@ public class LedgerEntry {
   @Column(nullable = false, precision = 19, scale = 2)
   private BigDecimal amount;
 
+  @Column(name = "created_by", nullable = false, updatable = false)
+  private String createdBy;
+
+  @Column(name = "reversal_of_entry_id")
+  private UUID reversalOfEntryId;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 

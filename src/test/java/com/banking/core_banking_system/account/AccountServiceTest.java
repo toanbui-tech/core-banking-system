@@ -44,7 +44,7 @@ class AccountServiceTest {
     debit.setEntryType(EntryType.DEBIT);
     debit.setAmount(new BigDecimal("100.00"));
 
-    ledgerService.recordTransaction(List.of(credit, debit));
+    ledgerService.recordTransaction(List.of(credit, debit), "test-user");
 
     BigDecimal balance = accountService.getBalance(account.getId());
     assertEquals(0, balance.compareTo(new BigDecimal("100.00")));
@@ -67,7 +67,7 @@ class AccountServiceTest {
     initialDebit.setEntryType(EntryType.DEBIT);
     initialDebit.setAmount(new BigDecimal("100.00"));
 
-    ledgerService.recordTransaction(List.of(initialCredit, initialDebit));
+    ledgerService.recordTransaction(List.of(initialCredit, initialDebit), "test-user");
 
     int threadCount = 2;
     ExecutorService executor = Executors.newFixedThreadPool(threadCount);
@@ -77,7 +77,7 @@ class AccountServiceTest {
     for (int i = 0; i < threadCount; i++) {
       executor.submit(() -> {
         try {
-          accountService.withdraw(account.getId(), counterparty.getId(), new BigDecimal("80.00"));
+          accountService.withdraw(account.getId(), counterparty.getId(), new BigDecimal("80.00"), "test-user");
           successCount.incrementAndGet();
         } catch (IllegalStateException e) {
           // Insufficient balance -- expected cho 1 trong 2 thread

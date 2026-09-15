@@ -42,7 +42,7 @@ public class AccountService {
   }
 
   @Transactional
-  public void withdraw(UUID accountId, UUID counterpartyAccountId, BigDecimal amount) {
+  public void withdraw(UUID accountId, UUID counterpartyAccountId, BigDecimal amount, String createdBy) {
     Account account = accountRepository.findByIdForUpdate(accountId)
       .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
@@ -64,6 +64,6 @@ public class AccountService {
     credit.setEntryType(EntryType.CREDIT);
     credit.setAmount(amount);
 
-    ledgerService.recordTransaction(List.of(debit, credit));
+    ledgerService.recordTransaction(List.of(debit, credit), createdBy);
   }
 }

@@ -17,15 +17,42 @@ public class LedgerService {
   }
 
   @Transactional
-  public void recordTransaction(List<LedgerEntry> entries) {
+  public void recordTransaction(List<LedgerEntry> entries, String createdBy) {
     validateBalanced(entries);
 
     UUID transactionId = UUID.randomUUID();
     for (LedgerEntry entry : entries) {
       entry.setTransactionId(transactionId);
+      entry.setCreatedBy(createdBy);
     }
 
     ledgerEntryRepository.saveAll(entries);
+  }
+
+  @Transactional
+  public void reverseTransaction(UUID transactionId, String reversedBy) {
+    List<LedgerEntry> originalEntries = ledgerEntryRepository.findByTransactionId(transactionId);
+
+    if (originalEntries.isEmpty()) {
+      throw new IllegalArgumentException("Transaction không tồn tại: " + transactionId);
+    }
+
+    UUID reversalTransactionId = UUID.randomUUID();
+    List<LedgerEntry> reversalEntries = originalEntries.stream()
+      .map(original -> {
+        LedgerEntry reversal = new LedgerEntry();
+        reversal.setAccountId(original.getAccountId());
+        reversal.setTransactionId(reversalTransactionId);
+        reversal.setEntryType(original.getEntryType() == EntryType.DEBIT ? EntryType.CREDIT : EntryType.DEBIT);
+        reversal.setAmount(original.getAmount());
+        reversal.setCreatedBy(reversedBy);
+        reversal.setReversalOfEntryId(original.getId());
+        return reversal;
+      })
+      .toList();
+
+    validateBalanced(reversalEntries);
+    ledgerEntryRepository.saveAll(reversalEntries);
   }
 
   private void validateBalanced(List<LedgerEntry> entries) {
