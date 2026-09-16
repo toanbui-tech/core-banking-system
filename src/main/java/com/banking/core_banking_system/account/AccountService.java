@@ -4,10 +4,13 @@ import com.banking.core_banking_system.ledger.EntryType;
 import com.banking.core_banking_system.ledger.LedgerEntry;
 import com.banking.core_banking_system.ledger.LedgerEntryRepository;
 import com.banking.core_banking_system.ledger.LedgerService;
+import com.banking.core_banking_system.shared.money.CurrencyMismatchException;
+import com.banking.core_banking_system.shared.money.Money;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,29 +29,38 @@ public class AccountService {
     this.ledgerService = ledgerService;
   }
 
-  public Account createAccount(String accountNumber, String accountType, String currency) {
+  public Account createAccount(String accountNumber, String accountType, String currencyCode) {
     Account account = new Account();
     account.setAccountNumber(accountNumber);
     account.setAccountType(accountType);
-    account.setCurrency(currency);
+    account.setCurrency(Currency.getInstance(currencyCode));
     account.setStatus("ACTIVE");
     return accountRepository.save(account);
   }
 
-  public BigDecimal getBalance(UUID accountId) {
+  public Money getBalance(UUID accountId) {
+    Account account = accountRepository.findById(accountId)
+      .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
     BigDecimal totalCredit = ledgerEntryRepository.sumCreditByAccountId(accountId);
     BigDecimal totalDebit = ledgerEntryRepository.sumDebitByAccountId(accountId);
-    return totalCredit.subtract(totalDebit);
+
+    return Money.of(totalCredit, account.getCurrency())
+      .subtract(Money.of(totalDebit, account.getCurrency()));
   }
 
   @Transactional
-  public void withdraw(UUID accountId, UUID counterpartyAccountId, BigDecimal amount, String createdBy) {
+  public void withdraw(UUID accountId, UUID counterpartyAccountId, Money amount, String createdBy) {
     Account account = accountRepository.findByIdForUpdate(accountId)
       .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
 
-    BigDecimal currentBalance = getBalance(accountId);
+    if (!account.getCurrency().equals(amount.getCurrency())) {
+      throw new CurrencyMismatchException(account.getCurrency(), amount.getCurrency());
+    }
 
-    if (currentBalance.compareTo(amount) < 0) {
+    Money currentBalance = getBalance(accountId);
+
+    if (currentBalance.isLessThan(amount)) {
       throw new IllegalStateException(
         "Insufficient balance: current=" + currentBalance + ", requested=" + amount
       );

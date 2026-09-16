@@ -2,11 +2,13 @@ package com.banking.core_banking_system.ledger;
 
 import com.banking.core_banking_system.account.Account;
 import com.banking.core_banking_system.account.AccountRepository;
+import com.banking.core_banking_system.shared.money.Money;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.math.BigDecimal;
+import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,7 +32,7 @@ class LedgerServiceTest {
     Account account = new Account();
     account.setAccountNumber(prefix + UUID.randomUUID().toString().substring(0, 8));
     account.setAccountType("CASH");
-    account.setCurrency("VND");
+    account.setCurrency(Currency.getInstance("VND"));
     account.setStatus("ACTIVE");
     return accountRepository.save(account).getId();
   }
@@ -43,12 +45,12 @@ class LedgerServiceTest {
     LedgerEntry debit = new LedgerEntry();
     debit.setAccountId(accountA);
     debit.setEntryType(EntryType.DEBIT);
-    debit.setAmount(new BigDecimal("100.00"));
+    debit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     LedgerEntry credit = new LedgerEntry();
     credit.setAccountId(accountB);
     credit.setEntryType(EntryType.CREDIT);
-    credit.setAmount(new BigDecimal("100.00"));
+    credit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     assertDoesNotThrow(() ->
       ledgerService.recordTransaction(List.of(debit, credit), "test-user")
@@ -63,12 +65,12 @@ class LedgerServiceTest {
     LedgerEntry debit = new LedgerEntry();
     debit.setAccountId(accountA);
     debit.setEntryType(EntryType.DEBIT);
-    debit.setAmount(new BigDecimal("100.00"));
+    debit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     LedgerEntry credit = new LedgerEntry();
     credit.setAccountId(accountB);
     credit.setEntryType(EntryType.CREDIT);
-    credit.setAmount(new BigDecimal("50.00"));
+    credit.setAmount(Money.of(new BigDecimal("50.00"), "VND"));
 
     assertThrows(IllegalStateException.class, () ->
       ledgerService.recordTransaction(List.of(debit, credit), "test-user")
@@ -83,12 +85,12 @@ class LedgerServiceTest {
     LedgerEntry debit = new LedgerEntry();
     debit.setAccountId(accountA);
     debit.setEntryType(EntryType.DEBIT);
-    debit.setAmount(new BigDecimal("100.00"));
+    debit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     LedgerEntry credit = new LedgerEntry();
     credit.setAccountId(accountB);
     credit.setEntryType(EntryType.CREDIT);
-    credit.setAmount(new BigDecimal("100.00"));
+    credit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     ledgerService.recordTransaction(List.of(debit, credit), "test-user");
     UUID transactionId = debit.getTransactionId();

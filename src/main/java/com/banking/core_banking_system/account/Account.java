@@ -1,9 +1,11 @@
 package com.banking.core_banking_system.account;
 
+import com.banking.core_banking_system.shared.money.CurrencyConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.time.LocalDateTime;
+import java.util.Currency;
 import java.util.UUID;
 
 @Entity
@@ -22,8 +24,9 @@ public class Account {
   @Column(name = "account_type", nullable = false)
   private String accountType;
 
-  @Column(nullable = false)
-  private String currency;
+  @Convert(converter = CurrencyConverter.class)
+  @Column(nullable = false, length = 3)
+  private Currency currency;
 
   @Column(nullable = false)
   private String status;

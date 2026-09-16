@@ -1,9 +1,9 @@
 package com.banking.core_banking_system.ledger;
 
+import com.banking.core_banking_system.shared.money.Money;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -27,8 +27,8 @@ public class LedgerEntry {
   @Column(name = "entry_type", nullable = false)
   private EntryType entryType;
 
-  @Column(nullable = false, precision = 19, scale = 2)
-  private BigDecimal amount;
+  @Embedded
+  private Money amount;
 
   @Column(name = "created_by", nullable = false, updatable = false)
   private String createdBy;

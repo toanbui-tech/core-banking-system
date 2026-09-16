@@ -1,9 +1,9 @@
 package com.banking.core_banking_system.ledger;
 
+import com.banking.core_banking_system.shared.money.Money;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -56,17 +56,23 @@ public class LedgerService {
   }
 
   private void validateBalanced(List<LedgerEntry> entries) {
-    BigDecimal totalDebit = entries.stream()
+    if (entries.isEmpty()) {
+      throw new IllegalArgumentException("Giao dịch phải có ít nhất 1 bút toán");
+    }
+
+    Money zero = Money.zero(entries.get(0).getAmount().getCurrency());
+
+    Money totalDebit = entries.stream()
       .filter(e -> e.getEntryType() == EntryType.DEBIT)
       .map(LedgerEntry::getAmount)
-      .reduce(BigDecimal.ZERO, BigDecimal::add);
+      .reduce(zero, Money::add);
 
-    BigDecimal totalCredit = entries.stream()
+    Money totalCredit = entries.stream()
       .filter(e -> e.getEntryType() == EntryType.CREDIT)
       .map(LedgerEntry::getAmount)
-      .reduce(BigDecimal.ZERO, BigDecimal::add);
+      .reduce(zero, Money::add);
 
-    if (totalDebit.compareTo(totalCredit) != 0) {
+    if (totalDebit.getAmount().compareTo(totalCredit.getAmount()) != 0) {
       throw new IllegalStateException(
         "Giao dịch không cân bằng: Nợ=" + totalDebit + ", Có=" + totalCredit
       );

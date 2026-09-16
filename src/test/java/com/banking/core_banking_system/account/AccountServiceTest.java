@@ -3,6 +3,7 @@ package com.banking.core_banking_system.account;
 import com.banking.core_banking_system.ledger.EntryType;
 import com.banking.core_banking_system.ledger.LedgerEntry;
 import com.banking.core_banking_system.ledger.LedgerService;
+import com.banking.core_banking_system.shared.money.Money;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,17 +38,17 @@ class AccountServiceTest {
     LedgerEntry credit = new LedgerEntry();
     credit.setAccountId(account.getId());
     credit.setEntryType(EntryType.CREDIT);
-    credit.setAmount(new BigDecimal("100.00"));
+    credit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     LedgerEntry debit = new LedgerEntry();
     debit.setAccountId(counterparty.getId());
     debit.setEntryType(EntryType.DEBIT);
-    debit.setAmount(new BigDecimal("100.00"));
+    debit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     ledgerService.recordTransaction(List.of(credit, debit), "test-user");
 
-    BigDecimal balance = accountService.getBalance(account.getId());
-    assertEquals(0, balance.compareTo(new BigDecimal("100.00")));
+    Money balance = accountService.getBalance(account.getId());
+    assertEquals(Money.of(new BigDecimal("100.00"), "VND"), balance);
   }
 
   @Test
@@ -60,12 +61,12 @@ class AccountServiceTest {
     LedgerEntry initialCredit = new LedgerEntry();
     initialCredit.setAccountId(account.getId());
     initialCredit.setEntryType(EntryType.CREDIT);
-    initialCredit.setAmount(new BigDecimal("100.00"));
+    initialCredit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     LedgerEntry initialDebit = new LedgerEntry();
     initialDebit.setAccountId(counterparty.getId());
     initialDebit.setEntryType(EntryType.DEBIT);
-    initialDebit.setAmount(new BigDecimal("100.00"));
+    initialDebit.setAmount(Money.of(new BigDecimal("100.00"), "VND"));
 
     ledgerService.recordTransaction(List.of(initialCredit, initialDebit), "test-user");
 
@@ -77,7 +78,7 @@ class AccountServiceTest {
     for (int i = 0; i < threadCount; i++) {
       executor.submit(() -> {
         try {
-          accountService.withdraw(account.getId(), counterparty.getId(), new BigDecimal("80.00"), "test-user");
+          accountService.withdraw(account.getId(), counterparty.getId(), Money.of(new BigDecimal("80.00"), "VND"), "test-user");
           successCount.incrementAndGet();
         } catch (IllegalStateException e) {
           // Insufficient balance -- expected cho 1 trong 2 thread
