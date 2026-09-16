@@ -63,6 +63,17 @@ class TransactionTest {
   }
 
   @Test
+  void record_shouldPropagateCreatedByToAllEntries() {
+    LedgerEntry debit = entry(UUID.randomUUID(), EntryType.DEBIT, Money.of(new BigDecimal("100.00"), "VND"));
+    LedgerEntry credit = entry(UUID.randomUUID(), EntryType.CREDIT, Money.of(new BigDecimal("100.00"), "VND"));
+
+    Transaction.record(List.of(debit, credit), "test-user");
+
+    assertEquals("test-user", debit.getCreatedBy());
+    assertEquals("test-user", credit.getCreatedBy());
+  }
+
+  @Test
   void reverse_shouldCreateOffsettingEntries_linkedToOriginalTransaction() {
     UUID accountA = UUID.randomUUID();
     UUID accountB = UUID.randomUUID();
@@ -82,5 +93,6 @@ class TransactionTest {
       .orElseThrow();
     assertEquals(EntryType.CREDIT, reversalOnA.getEntryType());
     assertEquals(debit.getId(), reversalOnA.getReversalOfEntryId());
+    assertEquals("reversal-user", reversalOnA.getCreatedBy());
   }
 }
