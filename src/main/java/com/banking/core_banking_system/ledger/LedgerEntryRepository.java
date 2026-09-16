@@ -10,7 +10,6 @@ import java.util.UUID;
 
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, UUID> {
   List<LedgerEntry> findByAccountId(UUID accountId);
-  List<LedgerEntry> findByTransactionId(UUID transactionId);
 
   @Query("SELECT COALESCE(SUM(e.amount.amount), 0) FROM LedgerEntry e " +
     "WHERE e.accountId = :accountId AND e.entryType = 'DEBIT'")

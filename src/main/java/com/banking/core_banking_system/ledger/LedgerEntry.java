@@ -20,8 +20,9 @@ public class LedgerEntry {
   @Column(name = "account_id", nullable = false)
   private UUID accountId;
 
-  @Column(name = "transaction_id", nullable = false)
-  private UUID transactionId;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "transaction_id", nullable = false, updatable = false)
+  private Transaction transaction;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "entry_type", nullable = false)
@@ -42,5 +43,9 @@ public class LedgerEntry {
   @PrePersist
   protected void onCreate() {
     this.createdAt = LocalDateTime.now();
+  }
+
+  public UUID getTransactionId() {
+    return transaction != null ? transaction.getId() : null;
   }
 }
