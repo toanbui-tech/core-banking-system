@@ -70,6 +70,32 @@ public class AccountService {
     return Money.of(totalCredit, currency).subtract(Money.of(totalDebit, currency));
   }
 
+  /**
+   * Cộng tiền vào account. Không cần Pessimistic Locking như withdraw() vì cộng tiền
+   * không có invariant nào có thể bị vi phạm (không có khái niệm "quá giới hạn" khi nạp).
+   */
+  @Transactional
+  public void deposit(UUID accountId, UUID counterpartyAccountId, Money amount, String createdBy) {
+    Account account = accountRepository.findById(accountId)
+      .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+    if (!account.getCurrency().equals(amount.getCurrency())) {
+      throw new CurrencyMismatchException(account.getCurrency(), amount.getCurrency());
+    }
+
+    LedgerEntry credit = new LedgerEntry();
+    credit.setAccountId(accountId);
+    credit.setEntryType(EntryType.CREDIT);
+    credit.setAmount(amount);
+
+    LedgerEntry debit = new LedgerEntry();
+    debit.setAccountId(counterpartyAccountId);
+    debit.setEntryType(EntryType.DEBIT);
+    debit.setAmount(amount);
+
+    ledgerService.recordTransaction(List.of(credit, debit), createdBy);
+  }
+
   @Transactional
   public void withdraw(UUID accountId, UUID counterpartyAccountId, Money amount, String createdBy) {
     Account account = accountRepository.findByIdForUpdate(accountId)
