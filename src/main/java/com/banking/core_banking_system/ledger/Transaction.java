@@ -1,5 +1,8 @@
 package com.banking.core_banking_system.ledger;
 
+import com.banking.core_banking_system.ledger.event.LedgerEntrySnapshot;
+import com.banking.core_banking_system.ledger.event.TransactionPostedEvent;
+import com.banking.core_banking_system.ledger.event.TransactionReversedEvent;
 import com.banking.core_banking_system.shared.money.Money;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -11,6 +14,7 @@ import jakarta.persistence.PostPersist;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.springframework.data.domain.Persistable;
 
@@ -43,6 +47,10 @@ public class Transaction implements Persistable<UUID> {
   @OneToMany(mappedBy = "transaction", cascade = CascadeType.PERSIST)
   private List<LedgerEntry> entries = new ArrayList<>();
 
+  @Transient
+  @Getter(AccessLevel.NONE)
+  private final List<Object> domainEvents = new ArrayList<>();
+
   protected Transaction() {
     // required by JPA
   }
@@ -73,6 +81,13 @@ public class Transaction implements Persistable<UUID> {
     Transaction transaction = new Transaction(createdBy, null);
     entries.forEach(transaction::addEntry);
     transaction.validateBalanced();
+    transaction.registerEvent(new TransactionPostedEvent(
+      UUID.randomUUID(),
+      transaction.id,
+      createdBy,
+      LocalDateTime.now(),
+      transaction.snapshotEntries()
+    ));
     return transaction;
   }
 
@@ -89,6 +104,14 @@ public class Transaction implements Persistable<UUID> {
     }
 
     reversal.validateBalanced();
+    reversal.registerEvent(new TransactionReversedEvent(
+      UUID.randomUUID(),
+      reversal.id,
+      this.id,
+      reversedBy,
+      LocalDateTime.now(),
+      reversal.snapshotEntries()
+    ));
     return reversal;
   }
 
@@ -96,10 +119,35 @@ public class Transaction implements Persistable<UUID> {
     return List.copyOf(entries);
   }
 
+  /**
+   * Trả về các domain event đã phát sinh và xóa khỏi hàng đợi nội bộ,
+   * để tránh publish trùng nếu gọi lại nhiều lần (VD: retry ở tầng service).
+   */
+  public List<Object> pullDomainEvents() {
+    List<Object> events = List.copyOf(domainEvents);
+    domainEvents.clear();
+    return events;
+  }
+
   private void addEntry(LedgerEntry entry) {
     entry.setTransaction(this);
     entry.setCreatedBy(this.createdBy);
     this.entries.add(entry);
+  }
+
+  private void registerEvent(Object event) {
+    this.domainEvents.add(event);
+  }
+
+  private List<LedgerEntrySnapshot> snapshotEntries() {
+    return entries.stream()
+      .map(e -> new LedgerEntrySnapshot(
+        e.getAccountId(),
+        e.getEntryType(),
+        e.getAmount().getAmount(),
+        e.getAmount().getCurrency().getCurrencyCode()
+      ))
+      .toList();
   }
 
   private void validateBalanced() {
