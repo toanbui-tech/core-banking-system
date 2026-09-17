@@ -5,11 +5,20 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Currency;
 import java.util.Objects;
 
 @Embeddable
 public final class Money {
+
+  /**
+   * Scale cố định cho MỌI currency (kể cả VND), không dùng Currency.getDefaultFractionDigits()
+   * (ISO 4217 nói VND=0). Core banking domain này giữ scale=2 xuyên suốt ở tầng lưu trữ/tính toán
+   * để không mất độ chính xác ở các phép tính trung gian (lãi suất, phí theo %) — làm tròn theo
+   * đơn vị hiển thị thực tế (nếu cần) là việc của tầng presentation, không phải Money.
+   */
+  private static final int SCALE = 2;
 
   @Column(name = "amount", nullable = false, precision = 19, scale = 2)
   private BigDecimal amount;
@@ -23,8 +32,11 @@ public final class Money {
   }
 
   private Money(BigDecimal amount, Currency currency) {
-    this.amount = Objects.requireNonNull(amount, "amount must not be null");
+    Objects.requireNonNull(amount, "amount must not be null");
     this.currency = Objects.requireNonNull(currency, "currency must not be null");
+    // RoundingMode.UNNECESSARY: nếu ném exception ở đây nghĩa là có chỗ đang tạo Money với giá trị
+    // không tròn ở scale=2 — đó là lỗi cần sửa ở nơi gọi, không phải lý do để đổi RoundingMode.
+    this.amount = amount.setScale(SCALE, RoundingMode.UNNECESSARY);
   }
 
   public static Money of(BigDecimal amount, Currency currency) {
