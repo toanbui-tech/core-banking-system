@@ -33,5 +33,18 @@ services:
     ports:
       - "6380:6379"
 
+  oracle:
+    image: gvenzl/oracle-free:23-slim-faststart
+    container_name: core-banking-oracle
+    environment:
+      ORACLE_PASSWORD: oracle
+      APP_USER: core_banking
+      APP_USER_PASSWORD: core_banking
+    ports:
+      - "1522:1521"
+    volumes:
+      - core-banking-oracle-data:/opt/oracle/oradata
+
 volumes:
   core-banking-data:
+  core-banking-oracle-data:
