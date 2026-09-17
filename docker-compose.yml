@@ -27,5 +27,11 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
 
+  redis:
+    image: redis:7-alpine
+    container_name: core-banking-redis
+    ports:
+      - "6380:6379"
+
 volumes:
   core-banking-data:
