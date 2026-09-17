@@ -1,0 +1,16 @@
+# NodePort thay vì ClusterIP - trên Docker Desktop K8s, NodePort truy cập được
+# thẳng qua localhost:<nodePort> từ máy host, không cần "kubectl port-forward"
+# chạy nền riêng khi demo/test.
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-banking-service
+  namespace: core-banking
+spec:
+  type: NodePort
+  selector:
+    app: core-banking-app
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080

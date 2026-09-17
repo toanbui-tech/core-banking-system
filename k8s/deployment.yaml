@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-banking-app
+  namespace: core-banking
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: core-banking-app
+  template:
+    metadata:
+      labels:
+        app: core-banking-app
+    spec:
+      containers:
+        - name: core-banking-app
+          image: core-banking-system:local
+          # image build local qua "docker build", không push registry nào -
+          # Docker Desktop K8s dùng chung image store với docker build nên không cần pull
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: core-banking-config
+            - secretRef:
+                name: core-banking-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "750m"
+              memory: "1024Mi"
+          # startupProbe: cho app đủ thời gian khởi động (kết nối DB/Kafka/Redis, ~15-20s
+          # theo thực đo ở Bước 2) trước khi liveness/readiness bắt đầu tính, tránh bị kill
+          # oan trong lúc khởi động chậm - đúng khuyến nghị K8s cho app JVM.
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3

@@ -1,0 +1,15 @@
+# Cấu hình KHÔNG nhạy cảm cho app, tách khỏi image. Trỏ tới các service hạ tầng
+# (Postgres/Kafka/Redis) vẫn đang chạy NGOÀI cluster qua docker-compose, dùng
+# host.docker.internal để Pod (bên trong Docker Desktop K8s) gọi ra được máy host -
+# xem README.md phần Kubernetes để biết lý do (đặc biệt listener Kafka riêng cho
+# container, port 9094).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-banking-config
+  namespace: core-banking
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://host.docker.internal:5434/core_banking?timezone=UTC"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "host.docker.internal:9094"
+  SPRING_DATA_REDIS_HOST: "host.docker.internal"
+  SPRING_DATA_REDIS_PORT: "6380"
