@@ -4,6 +4,10 @@ Hệ thống ledger ngân hàng lõi (double-entry bookkeeping), triển khai k�
 DDD Aggregate Root, Outbox Pattern + Kafka, Redis caching, và hỗ trợ chạy song song
 2 hệ quản trị CSDL (PostgreSQL và Oracle) qua Spring Profile.
 
+> **Mới xem repo lần đầu?** Đọc [docs/HUONG-DAN.md](docs/HUONG-DAN.md): chạy app trong vài
+> phút, thứ tự đọc code, luồng xử lý một giao dịch, và lý do chọn từng công nghệ.
+> Sau khi chạy app, API xem và gọi thử được tại http://localhost:8080/swagger-ui.html
+
 ## Yêu cầu hệ thống
 
 - Java 17
@@ -103,3 +107,90 @@ Nội dung 2 bộ migration **tương đương về schema nhưng khác cú phá
 dialect (VD: `UUID` → `RAW(16)`, `JSONB` → `JSON`, `UPDATE ... FROM` → `MERGE INTO`,
 partial index → function-based index). Chi tiết từng điểm khác biệt và lý do lựa chọn
 kỹ thuật sẽ được ghi trong ADR riêng (chưa viết ở thời điểm này).
+
+## Kubernetes
+
+Deploy app Java lên Kubernetes — **không** kèm data layer (Postgres/Oracle/Kafka/Redis
+vẫn chạy qua `docker-compose` như bình thường). Mục đích chính: verify Pessimistic
+Locking (chống overdraft) giữ vững khi nhiều instance ứng dụng chạy song song.
+
+### Yêu cầu
+
+- Docker Desktop với Kubernetes bật sẵn (Settings → Kubernetes → Enable Kubernetes).
+  Không dùng minikube/kind — Docker Desktop K8s dùng chung Docker engine/image cache
+  với `docker build`, không cần bước load image riêng vào cluster.
+- Hạ tầng data layer đã chạy qua `docker compose up -d` (xem [Khởi động hạ tầng](#khởi-động-hạ-tầng)
+  ở trên) — Pod trong K8s gọi ra ngoài cluster qua `host.docker.internal`.
+
+### Build image & deploy
+
+```bash
+docker build -t core-banking-system:local .
+
+kubectl apply -f k8s/namespace.yaml
+kubectl apply -f k8s/
+```
+
+`Deployment` dùng `imagePullPolicy: Never` — image build local, không qua registry nào.
+
+### Truy cập
+
+`Service` kiểu `NodePort`, truy cập thẳng từ máy host qua `localhost:30080`, không cần
+`kubectl port-forward`:
+
+```bash
+curl http://localhost:30080/actuator/health
+
+curl -X POST http://localhost:30080/accounts \
+  -H "Content-Type: application/json" \
+  -d '{"accountNumber":"ACC001","accountType":"CHECKING","currency":"VND"}'
+```
+
+### Kafka khi chạy trong container/Pod
+
+`localhost` bên trong container không phải là máy host, nên broker Kafka của
+`docker-compose` advertise thêm 1 listener riêng cho trường hợp này:
+
+| Client                                                | Bootstrap servers            |
+|--------------------------------------------------------|-------------------------------|
+| Chạy trực tiếp trên host (`mvn spring-boot:run`, test)  | `localhost:9092`             |
+| Chạy trong container/Pod                                | `host.docker.internal:9094`  |
+
+`k8s/configmap.yaml` đã trỏ sẵn `SPRING_KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:9094`.
+
+### Startup probe
+
+`startupProbe` cho phép tối đa **120 giây** (`periodSeconds: 5` × `failureThreshold: 24`)
+để app kết nối xong DB/Kafka/Redis và readiness pass, trước khi `livenessProbe` bắt đầu
+tính — đây là ngưỡng cấu hình trong manifest (biên an toàn), không phải thời gian khởi
+động thực tế đo được.
+
+### Verify Pessimistic Locking qua nhiều Pod
+
+```bash
+kubectl scale deployment core-banking-app -n core-banking --replicas=3
+kubectl get pods -n core-banking -w
+```
+
+Bắn nhiều request `withdraw` đồng thời vào cùng 1 account (VD nhiều `curl` chạy song
+song trong background), rồi đối chiếu 2 lớp bằng chứng qua log:
+
+```bash
+kubectl logs -n core-banking -l app=core-banking-app --prefix -f
+```
+
+- **Kết quả nghiệp vụ:** đúng 1 request thành công, các request còn lại nhận HTTP 409,
+  balance cuối cùng chính xác — không âm, không trừ lặp.
+- **Phân tán thật qua nhiều Pod:** `AccountController` log kèm tên Pod (đọc biến môi
+  trường `HOSTNAME` — K8s tự set bằng tên Pod) — xác nhận request thực sự rơi vào nhiều
+  Pod khác nhau, không phải 1 Pod xử lý hết do tình cờ route.
+
+Bối cảnh đầy đủ, phương án cân nhắc, và chi tiết kết quả verify được ghi trong ADR
+riêng (portfolio docs, chưa đưa vào repo này).
+
+### Giới hạn đã biết
+
+`OutboxEventPublisher` (`@Scheduled`) không có lock phân tán khi nhiều Pod cùng chạy —
+3 consumer PoC (Notification/Fraud Detection/Reporting) có thể log trùng nếu nhiều Pod
+cùng đọc trúng 1 `OutboxEvent` chưa publish. `AuditComplianceConsumer` không bị ảnh
+hưởng vì đã idempotent qua bảng `processed_events`.
