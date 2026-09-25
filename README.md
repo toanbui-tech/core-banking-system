@@ -194,3 +194,7 @@ riêng (portfolio docs, chưa đưa vào repo này).
 3 consumer PoC (Notification/Fraud Detection/Reporting) có thể log trùng nếu nhiều Pod
 cùng đọc trúng 1 `OutboxEvent` chưa publish. `AuditComplianceConsumer` không bị ảnh
 hưởng vì đã idempotent qua bảng `processed_events`.
+
+## Đóng góp
+
+Tên nhánh, commit message và tiêu đề PR theo luật trong [CONTRIBUTING.md](CONTRIBUTING.md) (Conventional Commits), được kiểm tra tự động trên mỗi PR bởi [`.github/workflows/naming.yml`](.github/workflows/naming.yml).
