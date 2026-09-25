@@ -1,0 +1,40 @@
+# Kiểm tra luật đặt tên nhánh, tiêu đề PR và commit message trên mỗi PR.
+# Luật chi tiết: CONTRIBUTING.md. Logic kiểm tra: .github/scripts/check-naming.sh
+name: Naming convention
+
+on:
+  pull_request:
+    # "edited": chạy lại khi sửa tiêu đề PR
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  naming:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # cần lịch sử để liệt kê commit giữa base và head
+
+      # Tên nhánh / tiêu đề PR do người dùng nhập: truyền qua env, KHÔNG nhúng
+      # trực tiếp ${{ }} vào lệnh shell (tránh script injection).
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: bash .github/scripts/check-naming.sh branch "$BRANCH"
+
+      - name: Check PR title
+        if: always()
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: bash .github/scripts/check-naming.sh commit "$TITLE"
+
+      - name: Check commit messages
+        if: always()
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/check-naming.sh range "$BASE_SHA" "$HEAD_SHA"
